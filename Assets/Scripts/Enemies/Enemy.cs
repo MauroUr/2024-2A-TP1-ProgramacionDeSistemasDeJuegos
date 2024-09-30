@@ -1,63 +1,89 @@
+using HealthSystem;
 using System;
-using System.Collections;
 using UnityEngine;
 using UnityEngine.AI;
 
 namespace Enemies
 {
     [RequireComponent(typeof(NavMeshAgent))]
-    public class Enemy : MonoBehaviour
+    public class Enemy : MonoBehaviour, IHealth
     {
         [SerializeField] private NavMeshAgent agent;
+        [SerializeField] private EnemiesParameters parameters;
+        
+        private GameObject _townCenter;
+
         public event Action OnSpawn = delegate { };
-        public event Action OnDeath = delegate { };
-    
+        public Health health;
+
         private void Reset() => FetchComponents();
 
         private void Awake() => FetchComponents();
-    
+
         private void FetchComponents()
         {
             agent ??= GetComponent<NavMeshAgent>();
+            health = new Health(parameters.maxHealth);
         }
-
         private void OnEnable()
         {
-            //Is this necessary?? We're like, searching for it from every enemy D:
-            var townCenter = GameObject.FindGameObjectWithTag("TownCenter");
+            //health.OnDeath += this.OnDeath.Invoke;
+            health.OnDeath += Die;
+        }
+
+        private void OnDisable()
+        {
+            //health.OnDeath -= this.OnDeath.Invoke;
+            health.OnDeath -= Die;
+        }
+
+        public void SetDestination(GameObject townCenter)
+        {
             if (townCenter == null)
             {
                 Debug.LogError($"{name}: Found no {nameof(townCenter)}!! :(");
                 return;
             }
 
-            var destination = townCenter.transform.position;
+            _townCenter = townCenter;
+            Vector3 destination = townCenter.transform.position;
             destination.y = transform.position.y;
             agent.SetDestination(destination);
-            StartCoroutine(AlertSpawn());
-        }
-
-        private IEnumerator AlertSpawn()
-        {
-            //Waiting one frame because event subscribers could run their onEnable after us.
-            yield return null;
             OnSpawn();
         }
 
         private void Update()
         {
-            if (agent.hasPath
-                && Vector3.Distance(transform.position, agent.destination) <= agent.stoppingDistance)
+            if (agent.hasPath && Vector3.Distance(transform.position, agent.destination) <= agent.stoppingDistance)
             {
                 Debug.Log($"{name}: I'll die for my people!");
-                Die();
+                health.Kill();
             }
+            else if (!agent.hasPath)
+                Destroy(this.gameObject);
         }
 
         private void Die()
         {
-            OnDeath();
-            Destroy(gameObject);
+            _townCenter.GetComponent<Structure>().TakeDamage(parameters.explosionDmg);
+            this.gameObject.SetActive(false);
         }
+
+        public void TakeDamage(int damage) => health.TakeDamage(damage);
+
+        public void Revive() => health.Revive();
+
+        public void Kill() => health.Kill();
+    }
+
+    [CreateAssetMenu(fileName = "EnemiesParameters", menuName = "Enemies/EnemiesParameters")]
+    public class EnemiesParameters : ScriptableObject
+    {
+        [SerializeField] private int _explosionDmg;
+        [SerializeField] private int _maxHealth;
+
+        public int explosionDmg => _explosionDmg;
+        public int maxHealth => _maxHealth;
+
     }
 }

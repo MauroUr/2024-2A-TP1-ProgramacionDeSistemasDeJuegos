@@ -19,12 +19,12 @@ namespace Enemies
 
         private void OnEnable()
         {
-            _enemy.OnDeath += HandleDeath;
+            _enemy.health.OnDeath += HandleDeath;
         }
 
         private void OnDisable()
         {
-            _enemy.OnDeath -= HandleDeath;
+            _enemy.health.OnDeath -= HandleDeath;
         }
 
         private void HandleDeath()

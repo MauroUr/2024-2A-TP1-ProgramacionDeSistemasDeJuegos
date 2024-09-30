@@ -6,7 +6,7 @@ namespace Enemies
     [Serializable]
     public struct RandomContainer<T>
     {
-        [SerializeField] private T[] candidates;
+        [SerializeField] public T[] candidates;
 
         public bool TryGetRandom(out T result)
         {
